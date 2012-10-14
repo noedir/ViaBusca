@@ -1,30 +1,27 @@
-<?
+<?php
 session_start();
 
+include_once("classes/conecta.class.php");
+$via = new mysqlConn();
+
 if($_GET['bus'] == "sim" and $_GET['qy'] <> ""){
-include("conexao.php");
-opendatabase();
 
-if($_GET['tipo'] == "toda"){
-	$idioma = "";
-}else{
-	$idioma = "AND sit_idioma LIKE '%".$_GET['tipo']."%'";
+    if($_GET['tipo'] == "toda"){
+        $idioma = "";
+    }else{
+        $idioma = "AND sit_idioma LIKE '%".$_GET['tipo']."%'";
+    }
+
+    $sql = "SELECT * FROM tbl_site WHERE sit_url LIKE '%".$_GET['qy']."%' OR sit_metakey LIKE '%".$_GET['qy']."%' OR sit_metades LIKE '%".$_GET['qy']."%' $idioma ORDER BY sit_relevancia DESC LIMIT 30";
+    $qr = $via->consulta($sql);
+
+    $nbus = $via->totalRegistros($sql);
 }
-
-$busca = mysql_query("SELECT * FROM tbl_site WHERE sit_url LIKE '%".$_GET['qy']."%' OR sit_metakey LIKE '%".$_GET['qy']."%' OR sit_metades LIKE '%".$_GET['qy']."%' $idioma ORDER BY sit_relevancia DESC LIMIT 30");
-
-$nbus = mysql_num_rows($busca);
-}
-
-$mtime = microtime();
-$mtime = explode(" ",$mtime);
-$mtime = $mtime[1] + $mtime[0];
-$starttime = $mtime; // Dá início a variável de contagem do tempo de geração da página.
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<? include("meta.php"); ?>
+<?php include("meta.php"); ?>
 <title>Via Busca</title>
 <style type="text/css">
 <!--
@@ -67,7 +64,7 @@ body {
     <td height="72" align="center"><form id="formbusca" name="formbusca" method="get" action="index.php">
       <table width="100%" border="0" cellspacing="0" cellpadding="4">
         <tr>
-          <td align="center"><input name="qy" type="text" value="<?= $_GET['qy']; ?>" id="qy" size="50" />
+          <td align="center"><input name="qy" type="text" value="<?php echo  $_GET['qy']; ?>" id="qy" size="50" />
 &nbsp;
 <input type="submit" name="button" id="button" value="Buscar" />
 <input name="bus" type="hidden" id="bus" value="sim" /></td>
@@ -75,46 +72,49 @@ body {
         <tr>
           <td align="center"><input name="tipo" type="radio" id="radio" value="toda" <? if($_GET['tipo'] == "toda"){ echo "checked=checked"; }elseif($_GET['tipo'] == ""){ echo "checked=checked"; } ?> />
             Na Web&nbsp;&nbsp;
-            <input type="radio" name="tipo" id="radio2" value="pt-br" <? if($_GET['tipo'] == "pt-br"){ echo "checked=checked"; } ?> />            
+            <input type="radio" name="tipo" id="radio2" value="pt-br" <? if($_GET['tipo'] == "pt-br"){ echo "checked=checked"; } ?> />
             Em Portugu&ecirc;s</td>
           </tr>
       </table>
     </form></td>
   </tr>
 </table>
-<? if($_GET['bus'] == "sim" and $_GET['qy'] <> ""){?>
+<? if($_GET['bus'] == "sim" and $_GET['qy'] != ""){?>
 <? if($nbus >= 1){ ?>
 <table width="100%" border="0" cellspacing="0" cellpadding="4">
   <tr>
-    <td bgcolor="#DDEBFF" class="mn_resultado">Encontrado <strong><?= $nbus; ?></strong> ocorr&ecirc;ncias para <strong><?= $_GET['qy']; ?></strong></td>
+    <td bgcolor="#DDEBFF" class="mn_resultado">Encontrado <strong><?php echo  $nbus; ?></strong> ocorr&ecirc;ncias para <strong><?php echo  $_GET['qy']; ?></strong></td>
   </tr>
   <tr>
     <td>&nbsp;</td>
   </tr>
-  <? while($res = mysql_fetch_array($busca)){
-	  
-	  $rele = mysql_query("UPDATE tbl_site SET sit_relevancia = sit_relevancia + 1 WHERE sit_codigo = $res[sit_codigo]");
+  <?php while($res = $qr->fetch(PDO::FETCH_ASSOC)){
+          $via->setAcao("update");
+          $via->setTabela("tbl_site");
+          $via->setValores("sit_relevancia = sit_relevancia + 1");
+          $via->setCdg("sit_codigo = '".$res['sit_codigo']."'");
+          $via->executa();
 	  ?>
   <tr>
-    <td><a href="<?= $res['sit_url']; ?>" class="tit_link"><?= $res['sit_titulo']; ?></a></td>
+      <td><a href="<?php echo  $res['sit_url']; ?>" class="tit_link"><?php echo utf8_encode($res['sit_titulo']); ?></a></td>
   </tr>
   <tr>
-    <td><?= $res['sit_metades']; ?></td>
+      <td><?php echo utf8_encode($res['sit_metades']); ?></td>
   </tr>
   <tr>
-    <td><strong class="res_link"><?= $res['sit_url']; ?></strong></td>
+    <td><strong class="res_link"><?php echo  $res['sit_url']; ?></strong></td>
   </tr>
-  
+
   <tr>
     <td>&nbsp;</td>
-  </tr><? } ?>
+  </tr><?php } ?>
 </table>
-<?
+<?php
 }else{
 ?>
 <table width="100%" border="0" cellspacing="0" cellpadding="4">
   <tr>
-    <td><p>N&atilde;o foi encontrado nenhum resultado para <strong><?= $_GET['qy']; ?></strong>.</p>
+    <td><p>NÃ£o foi encontrado nenhum resultado para <strong><?php echo  $_GET['qy']; ?></strong>.</p>
     <p>Siga uma das dicas abaixo para encontrar&nbsp;o que voc&ecirc; procura:</p>
     <ul>
       <li> Certifique-se de que todas as palavras estejam escritas corretamente.</li>
@@ -123,7 +123,7 @@ body {
     </ul></td>
   </tr>
 </table>
-<?
+<?php
 }
 }
 ?>
@@ -135,14 +135,7 @@ body {
     <td align="center"><a href="acrescenta.php">Acrescente o seu site</a>&nbsp; |&nbsp; <a href="comofunciona.php">Como funciona</a></td>
   </tr>
   <tr>
-    <td align="center"><?
-$mtime = microtime();
-$mtime = explode(" ",$mtime);
-$mtime = $mtime[1] + $mtime[0];
-$endtime = $mtime; // Finaliza a variável de contagem do tempo de geração da página.
-$totaltime = ($endtime - $starttime); // É feita a contagem do tempo total que a página levou para ser gerada.
-echo "Página carregada em: ". round($totaltime,2) ." segundo(s)."; // Mostra o tempo que a página levou para ser gerada.
-?>
+      <td align="center"><?php echo $via->tempo_carrega_fim(); ?>
 </td>
   </tr>
 </table>

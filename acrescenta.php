@@ -1,6 +1,6 @@
-<?
+<?php
 /*************************************************
-Esse arquivo recebe o site que o usu·rio
+Esse arquivo recebe o site que o usuÔøΩrio
 digita diretamente no site.
 
 Sistema desenvolvido por Noedir C. Filho
@@ -9,32 +9,32 @@ http://www.constantweb.com.br  -  2010
 
 session_start();
 
+include_once("classes/conecta.class.php");
+$via = new mysqlConn();
 if($_POST['manda'] == "sim"){
-include("conexao.php");
-opendatabase();
 
-$nbus = @mysql_num_rows(mysql_query("SELECT * FROM tbl_site WHERE sit_url = '$_POST[url]'"));
+    $sql = "SELECT * FROM tbl_site WHERE sit_url = '$_POST[url]'";
+    $nbus = $via->totalRegistros($sql);
 
-if($nbus <= 0){
+    if($nbus < 1){
+        $via->setAcao("insert");
+        $via->setTabela("tbl_acre");
+        $via->setCampos("acr_url");
+        $via->setValores("'".$_POST['url']."'");
+        $via->executa();
 
-$cad = @mysql_query("INSERT INTO tbl_acre (acr_url, acr_indexado) VALUES ('$_POST[url]','n')");
-
-?>
-	<script type="text/javascript">
-		alert("Dados cadastrados com sucesso.\r\n\r\nSer„o indexados em atÈ 24 horas.");
+	echo '<script type="text/javascript">
+		alert("Dados cadastrados com sucesso.\r\n\r\nSer√£o indexados em at√© 24 horas.");
 		location.href="index.php";
-	</script>
-	<?
-}else{
+	</script>';
+    }else{
 
-?>
-<script type="text/javascript">
-	alert("Esse site j· est· cadastrado no sistema.\r\n\r\nExperimente inserir um diretÛrio.");
+
+        echo '<script type="text/javascript">
+	alert("Esse site j√° est√° cadastrado no sistema.\r\n\r\nExperimente inserir um diret√≥rio.");
 	location.href="acrescenta.php";
-</script>
-<?
-
-}
+        </script>';
+    }
 }
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -83,7 +83,7 @@ body {
   </tr>
   <tr>
     <td><form id="form" name="form" method="post" action="acrescenta.php">
-      <p>Para que seu site seja indexado corretamente (isso ocorrer&aacute; em at&eacute; 24 horas), voc&ecirc; precisa ter definido, obrigatoriamente, 
+      <p>Para que seu site seja indexado corretamente (isso ocorrer&aacute; em at&eacute; 24 horas), voc&ecirc; precisa ter definido, obrigatoriamente,
         duas meta tags no seu site:
 </p>
       <ul>
@@ -110,5 +110,6 @@ body {
     </form></td>
   </tr>
 </table>
+    <?php echo $via->tempo_carrega_fim(); ?>
 </body>
 </html>

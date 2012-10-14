@@ -1,58 +1,72 @@
-<?
+<?php
 /*****************************************************
-A finalidade desse arquivo é pegar os links dos sites
+A finalidade desse arquivo ï¿½ pegar os links dos sites
 e acrescentar para indexar outros sites na lista de
-busca. Esse recurso é similar ao Google, pois não é
-necessário que se cadastre outros site, o sistema já
+busca. Esse recurso ï¿½ similar ao Google, pois nï¿½o ï¿½
+necessï¿½rio que se cadastre outros site, o sistema jï¿½
 faz isso automaticamente.
-É executado uma vez por semana.
+ï¿½ executado uma vez por semana.
 
 Sistema desenvolvido por Noedir C. Filho
 http://www.constantweb.com.br  -  2010
 ******************************************************/
 
-include("conexao.php");
-opendatabase();
+include_once("classes/conecta.class.php");
+$via = new mysqlConn();
 
-$sites = @mysql_query("SELECT * FROM tbl_acre WHERE acr_indexado = 's'");
+$sql = "SELECT * FROM tbl_acre WHERE acr_indexado = 's'";
+$qr = $via->consulta($sql);
 
-while($sit = @mysql_fetch_array($sites)){
-	
-$file = @file_get_contents($sit['acr_url']);
+$dom = new DOMDocument();
 
-@preg_match_all("/<\s*a\s+[^>]*href\s*=\s*[\"']?([^\"' >]+)[\"' >]/isU", $file, $ancora);
+while($sit = $qr->fetch(PDO::FETCH_ASSOC)){
 
-@list($links) = $ancora;
+    @$dom->loadHTML(file_get_contents($sit['acr_url']));
+    $tags = $dom->getElementsByTagName("a");
 
-foreach($links as $key => $value){
-	
-	$ver = @substr_count($value, "http://");
-	$ver += @substr_count($value, "https://");
-	
-	if($ver >= 1){
-		
-		$href = @str_replace("<a href=\"","",$value);
-		$href = @str_replace("\"","",$href);
-		
-		$head = @get_headers($sit['acr_url']);
-		$head = @substr_count($head[0],"200");
-		
-		if($head >= 1){
-		
-		$check = @mysql_num_rows(mysql_query("SELECT * FROM tbl_acre WHERE acr_url = '$href'"));
-		
-		if($check <= 0){
-			$insere = @mysql_query("INSERT INTO tbl_acre (acr_url, acr_indexado) VALUES ('$href','n')");
-		}else{
-			$delete = @mysql_query("DELETE FROM tbl_acre WHERE acr_codigo = $sit[acr_codigo]");
-		}
-		
-		}else{
-			$delete = @mysql_query("DELETE FROM tbl_acre WHERE acr_codigo = $sit[acr_codigo]");	
-		}
-	}
-	
+    foreach($tags as $tag){
+
+        $link = $tag->getAttribute('href');
+        if($link != ""){
+            echo $link."<br>";
+        }
+
+        $ver = substr_count($link, "http://");
+        $ver += substr_count($link, "https://");
+
+        if($ver >= 1){
+
+            $head = get_headers($link);
+            $header = substr_count($head[0],"200");
+
+            if($header >= 1){
+
+                $check = $via->totalRegistros("SELECT * FROM tbl_acre WHERE acr_url = '$href'");
+
+            if($check <= 0 && $link != ""){
+                $via->setAcao("insert");
+                $via->setTabela("tbl_acre");
+                $via->setCampos("acr_url");
+                $via->setValores("'$link'");
+                $via->executa();
+            }else{
+                $via->setAcao("delete");
+                $via->setTabela("tbl_acre");
+                $via->setCdg("acr_codigo = '$sit[acr_codigo]'");
+                $via->executa();
+            }
+
+            }else{
+                $via->setAcao("delete");
+                $via->setTabela("tbl_acre");
+                $via->setCdg("acr_codigo = '$sit[acr_codigo]'");
+                $via->executa();
+            }
+        }
+    }
 }
-}
-$delete = @mysql_query("DELETE FROM tbl_acre WHERE acr_indexado = 's'");
+$via->setAcao("delete");
+$via->setTabela("tbl_acre");
+$via->setCdg("acr_indexado = 's'");
+$via->executa();
 ?>

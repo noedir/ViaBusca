@@ -1,110 +1,128 @@
-<?	
+<?php
 /*************************************************
 Esse arquivo pega os sites cadastrados e faz a
 varredura para acrescentar na tabela sites.
-Isso é feito diariamente às 3 da manhã.
+Isso ï¿½ feito diariamente ï¿½s 3 da manhï¿½.
 
 Sistema desenvolvido por Noedir C. Filho
 http://www.constantweb.com.br  -  2010
 **************************************************/
 
-include("conexao.php");
-opendatabase();
+include_once("classes/conecta.class.php");
+$via = new mysqlConn();
 
-//Pega as informações da tabela ACRE
-$sites = @mysql_query("SELECT * FROM tbl_acre WHERE acr_indexado = 'n'");
+//Pega as informaï¿½ï¿½es da tabela ACRE
+$sql = "SELECT * FROM tbl_acre WHERE acr_indexado = 'n'";
+$qr = $via->consulta($sql);
 
-@set_time_limit(0);
+set_time_limit(0);
 
-while($sit = @mysql_fetch_array($sites)){
+while($sit = $qr->fetch(PDO::FETCH_ASSOC)){
 
-$jacds = @mysql_num_rows(mysql_query("SELECT * FROM tbl_site WHERE sit_url = $sit[acr_url]"));
+$jacds = $via->totalRegistros("SELECT * FROM tbl_site WHERE sit_url = '".$sit['acr_url']."'");
 
-if($jacds <= 0){
+if($jacds < 1){
 
 //Verifica se possui o http:// ou https://
-$conta = @substr_count($sit['acr_url'],"http://");
-$conta += @substr_count($sit['acr_url'],"https://");
+$conta = substr_count($sit['acr_url'],"http://");
+$conta += substr_count($sit['acr_url'],"https://");
 
 if($conta >= 1){
 
 //Verifica se o site existe realmente
-$head = @get_headers($sit['acr_url']);
+$head = get_headers($sit['acr_url']);
 
-$head = @substr_count($head[0],"200");
+$header = substr_count($head[0],"200");
 
-if($head >= 1){
+if($header >= 1){
 
-//Pega o conteúdo todo do site.
-$pega = @file_get_contents($sit['acr_url']);
+//Pega o conteï¿½do todo do site.
+$pega = file_get_contents($sit['acr_url']);
 
-// Armazena o conteúdo em outra variável
+// Armazena o conteï¿½do em outra variï¿½vel
 $tti = $pega;
 
-//Retira algumas tags que não são necessários
-$pega = @ereg_replace('<script.*</script>', '', $pega);
-$pega = @ereg_replace('<object.*</object>', '', $pega);
-$pega = @ereg_replace('<style.*</style>','', $pega);
-$pega = @ereg_replace('<embed.*</embed>', '', $pega);
-$pega = @ereg_replace('<applet.*</applet>', '', $pega);
-$pega = @ereg_replace('<iframe.*</iframe>', '', $pega);
-$pega = @ereg_replace('<noframes.*</noframes>', '', $pega);
-$pega = @ereg_replace('<noscript.*</noscript>', '', $pega);
-$pega = @ereg_replace('<noembed.*</noembed>', '', $pega);
+//Retira algumas tags que nï¿½o sï¿½o necessï¿½rios
+$pega = ereg_replace('<script.*</script>', '', $pega);
+$pega = ereg_replace('<object.*</object>', '', $pega);
+$pega = ereg_replace('<style.*</style>','', $pega);
+$pega = ereg_replace('<embed.*</embed>', '', $pega);
+$pega = ereg_replace('<applet.*</applet>', '', $pega);
+$pega = ereg_replace('<iframe.*</iframe>', '', $pega);
+$pega = ereg_replace('<noframes.*</noframes>', '', $pega);
+$pega = ereg_replace('<noscript.*</noscript>', '', $pega);
+$pega = ereg_replace('<noembed.*</noembed>', '', $pega);
 
-//Retira espaços desnecessários
-$pega = @trim(@strip_tags($pega));
+//Retira espaï¿½os desnecessï¿½rios
+$pega = trim(strip_tags($pega));
 
-//Retira a codificação HTML
-$pega = @html_entity_decode($pega);
+//Retira a codificaï¿½ï¿½o HTML
+$pega = html_entity_decode($pega);
 
-//Obtém as tags DESCRIPTION e KEYWORDS
-$tag = @get_meta_tags(strtolower(strtolower($sit['acr_url'])));
+//Obtï¿½m as tags DESCRIPTION e KEYWORDS
+$tag = get_meta_tags(strtolower(strtolower($sit['acr_url'])));
 
-//Obtém o título da página pelo tag TITLE
-@preg_match("/<title>(.*)<\/title>/i", $tti, $titulo);
+//Obtï¿½m o tï¿½tulo da pï¿½gina pelo tag TITLE
+preg_match("/<title>(.*)<\/title>/i", $tti, $titulo);
 
-//Deixa somente o texto do título
-$titulo = @str_replace("<title>","",$titulo[0]);
-$titulo = @str_replace("</title>","",$titulo);
+//Deixa somente o texto do tï¿½tulo
+$titulo = str_replace("<title>","",$titulo[0]);
+$titulo = str_replace("</title>","",$titulo);
 
-$titulo = @str_replace("<TITLE>","",$titulo);
-$titulo = @str_replace("</TITLE>","",$titulo);
+$titulo = str_replace("<TITLE>","",$titulo);
+$titulo = str_replace("</TITLE>","",$titulo);
 
-$titulo = @html_entity_decode($titulo);
+$titulo = html_entity_decode($titulo);
 
 if(mb_detect_encoding($titulo,"UTF-8,ISO-8859-1") != "ISO-8859-1"){
-	$titulo = @utf8_decode($titulo);
+	$titulo = utf8_decode($titulo);
 }
 
-//Coloca o conteúdo da tag DESCRIPTION em uma variável. Se não possuir, atribui o título
+//Coloca o conteï¿½do da tag DESCRIPTION em uma variï¿½vel. Se nï¿½o possuir, atribui o tï¿½tulo
 $descricao = ($tag['description'] == "" ? $titulo : $tag['description']);
 
-//Coloca o conteúdo da tag KEYWORDS em uma variável. Se não possuir, atribui o título
+//Coloca o conteï¿½do da tag KEYWORDS em uma variï¿½vel. Se nï¿½o possuir, atribui o tï¿½tulo
 $keyw = ($tag['keywords'] == "" ? $pega : $tag['keywords']);
 
-//Insere o conteúdo do site em banco de dados que será usado nas consultas no site
-$insere = @mysql_query("INSERT INTO tbl_site (sit_titulo, sit_url, sit_metakey, sit_metades, sit_idioma) VALUES ('$titulo','$sit[acr_url]','$keyw','$descricao','".$_SERVER['HTTP_ACCEPT_LANGUAGE']."')");
+//Insere o conteï¿½do do site em banco de dados que serï¿½ usado nas consultas no site
+$via->setAcao("insert");
+$via->setTabela("tbl_site");
+$via->setCampos("sit_titulo, sit_url, sit_metakey, sit_metades, sit_idioma");
+$via->setValores("'$titulo','".$sit['acr_url']."','$keyw','$descricao','".$_SERVER['HTTP_ACCEPT_LANGUAGE']."'");
+$via->executa();
 
-//Atualiza a tabela ACRE para mostrar que os sites já foram indexados
-$atualiza = @mysql_query("UPDATE tbl_acre SET acr_indexado = 's' WHERE acr_codigo = $sit[acr_codigo]");
+//Atualiza a tabela ACRE para mostrar que os sites jï¿½ foram indexados
+$via->setAcao("update");
+$via->setTabela("tbl_acre");
+$via->setValores("acr_indexado = 's'");
+$via->setCdg("acr_codigo = ".$sit['acr_codigo']."");
+$via->executa();
 
 }else{
-	
-	//Se o site der header diferente de 200, é excluído da base de dados
-	$apaga = @mysql_query("DELETE FROM tbl_acre WHERE acr_codigo = $sit[acr_codigo]");
+
+	//Se o site der header diferente de 200, ï¿½ excluï¿½do da base de dados
+        $via->setAcao("delete");
+        $via->setTabela("tbl_acre");
+        $via->setCdg("acr_codigo = ".$sit['acr_codigo']."");
+	$via->executa();
 }
 
 }else{
-	
-	//Se o site não começar com http:// ou https:// é excluído da base de dados
-	$apaga = @mysql_query("DELETE FROM tbl_acre WHERE acr_codigo = $sit[acr_codigo]");
+
+	//Se o site nï¿½o comeï¿½ar com http:// ou https:// ï¿½ excluï¿½do da base de dados
+	$via->setAcao("delete");
+        $via->setTabela("tbl_acre");
+        $via->setCdg("acr_codigo = ".$sit['acr_codigo']."");
+	$via->executa();
 }
 }else{
-	
-	//Exclui se o site já estiver cadastrado na base de dados
-	$apaga = @mysql_query("DELETE FROM tbl_acre WHERE acr_codigo = $sit[acr_codigo]");
+
+	//Exclui se o site jï¿½ estiver cadastrado na base de dados
+	$via->setAcao("delete");
+        $via->setTabela("tbl_acre");
+        $via->setCdg("acr_codigo = ".$sit['acr_codigo']."");
+	$via->executa();
 }
 }
-$opt = mysql_query("OPTIMIZE TABLE tbl_acre, tbl_image, tbl_site");
+$via->consulta("OPTIMIZE TABLE tbl_acre, tbl_image, tbl_site");
 ?>
